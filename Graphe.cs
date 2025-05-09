@@ -16,6 +16,10 @@ namespace TransConnect
             ListAdjacence = new Dictionary<Noeud, List<(Noeud, double)>>();
             MatriceAdjacence = new Dictionary<(Noeud, Noeud), double>();
         }
+        public string[] NomVilles()
+        {
+            return Villes.Select(v => v.Nom).ToArray();
+        }
         public void AjouterNoeud(string str)
         {
             Noeud n = Villes.Find(n => n.Nom == str);

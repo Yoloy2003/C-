@@ -1,5 +1,6 @@
 ﻿using MySql.Data.MySqlClient;
 using System.Diagnostics;
+using System.Security.Policy;
 
 namespace TransConnect
 {
@@ -7,7 +8,6 @@ namespace TransConnect
     {
         static void Main(string[] args)
         {
-
             Test();
             //Interface();
         }
@@ -124,12 +124,14 @@ namespace TransConnect
             //Delete(connectionString);
 
             //Console.WriteLine(AfficheTable(connectionString, "Personne"));
-            Console.WriteLine(AfficheTable(connectionString, "Personne","Salarie"));
+            Console.WriteLine(AfficheTable(connectionString, "Personne", "Salarie"));
 
             Graphe g = new Graphe();
             //g.CSV("distances_villes_france.csv");
 
             RemplirGrapheTest(g);
+
+            Commande(1002, g);
 
             g.AfficherListeAdjacence();
             g.AfficherMatriceAdjacence();
@@ -144,7 +146,7 @@ namespace TransConnect
 
 
             string ville1 = "Paris";
-            string ville2 = "Bilbao"; // Exemple de ville : Bilbao / PasConnecter
+            string ville2 = "Bruxelles"; // Exemple de ville : Bilbao / PasConnecter
 
 
 
@@ -226,7 +228,7 @@ namespace TransConnect
 
             //BenchMarkGraphe(g); // Fais un BenchMark des 3 algo pour avoir les temps moyen d'execution et determiner lequel est le meilleur ( 100000 répétition )
 
-            Console.WriteLine("Prix pour une Voiture, 300km, 10ans d'ancienneté : " + Prix(10,300,0)); // (20 + 300*1) * 0.025
+            Console.WriteLine("Prix pour une Voiture, 300km, 10ans d'ancienneté : " + Prix(10, 300, 0)); // (20 + 300*1) * 0.025
             Console.WriteLine("Prix pour une Camionnette, 300km, 10ans d'ancienneté : " + Prix(10, 300, 1)); // (20 + 300*1.5) * 0.025
             Console.WriteLine("Prix pour un PoidsLourd, 300km, 10ans d'ancienneté : " + Prix(10, 300, 2)); // (20 + 300*1.75) * 0.025
         }
@@ -450,12 +452,16 @@ namespace TransConnect
                 while (reader.Read())                           // parcours ligne par ligne
                 {
                     string currentRowAsString = "";
+                    if (res != "")
+                    {
+                        currentRowAsString = "|";
+                    }
                     for (int i = 0; i < reader.FieldCount - 1; i++)    // parcours cellule par cellule
                     {
-                        string valueAsString = reader.GetValue(i).ToString();  // recuperation de la valeur de chaque cellule sous forme d'une string
+                        string valueAsString = reader.GetValue(i).ToString();  // recuperation de la valeur de chaque cellule sous forme d'un string
                         currentRowAsString += valueAsString + ";";
                     }
-                    res += currentRowAsString + reader.GetValue(reader.FieldCount - 1).ToString() + "";
+                    res += currentRowAsString + reader.GetValue(reader.FieldCount - 1).ToString();
                 }
                 connection.Close();
             }
@@ -914,7 +920,6 @@ namespace TransConnect
                 {
                     if (var == "oui")
                     {
-                        fin = true;
                         break;
                     }
                     else if (var == "non")
@@ -943,27 +948,680 @@ namespace TransConnect
             }
 
         }
-        static void Commande(string connectionString)
+        static void Commande(int nss, Graphe g)
         {
-            
+            string connectionString = "SERVER=localhost;PORT=3306;DATABASE=Transconnect;UID=root;PASSWORD=Rootroot1;";
+            string personne = string.Join(" ", SelectCommande("SELECT Prenom,Nom FROM PERSONNE WHERE NSS = " + nss + ";", connectionString).Split(";"));
+            bool fin = true;
+            string[] ville = g.NomVilles();
+            string villeStr = string.Join(", ", ville);
+            string Ville1 = "";
+            string Ville2 = "";
+            string date = "";
+            string chauffeurNSS = "";
+            string chauffeur = "";
+            string véhicule = "";
+            string utilité = "";
+            string km = "";
+            double prix = 0;
+            double prixEntier = 0;
+            double prixDecimal = 0;
+
+            while (fin)
+            {
+                Console.Clear();
+                Console.WriteLine($"\nCommande de {personne} : \n");
+                Console.WriteLine("Service : Voiture, Camionnette, Camions");
+                Console.WriteLine("Quel service voulez-vous prendre : ");
+                Console.WriteLine("\n( exit pour sortir )");
+                Console.SetCursorPosition(35, Console.CursorTop - 3);
+                Console.CursorVisible = true;
+                string var = Console.ReadLine().ToLower();
+                Console.CursorVisible = false;
+                if (var == "exit")
+                {
+                    fin = false;
+                    break;
+                }
+                else if (var == "voiture" || var == "camionnette" || var == "camions")
+                {
+                    if (var == "voiture")
+                    {
+                        var = char.ToUpper(var[0]) + var.Substring(1).ToLower();
+                        int nbpassager = 0;
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine("Service : " + var);
+                            Console.WriteLine("Pour combien de personnes : ");
+                            Console.WriteLine("( 6 maximum )");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(28, Console.CursorTop - 4);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    bool ok = true;
+                                    if (var2 == "") ok = false;
+                                    if (Char.IsDigit(var2[0]) == false || var2.Length > 1 || Int32.Parse(var2) > 6)
+                                    {
+                                        ok = false;
+                                    }
+                                    if (ok)
+                                    {
+                                        nbpassager = Int32.Parse(var2);
+                                        break;
+                                    }
+                                }
+                                catch { continue; }
+                            }
+                        }
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} pour {nbpassager} personnes.");
+                            Console.WriteLine("Ville disponible : " + villeStr);
+                            Console.WriteLine("\nVous partez de quel Ville :");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(28, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 != "") var2 = char.ToUpper(var2[0]) + var2.Substring(1);
+                                if (ville.Contains(var2))
+                                {
+                                    Ville1 = var2;
+                                    break;
+                                }
+                            }
+                        }
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} pour {nbpassager} personnes.");
+                            Console.WriteLine("Ville disponible : " + villeStr);
+                            Console.WriteLine("\nVous allez à quel Ville :");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(26, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 != "") var2 = char.ToUpper(var2[0]) + var2.Substring(1);
+                                if (ville.Contains(var2) && Ville1 != var2)
+                                {
+                                    Ville2 = var2;
+                                    break;
+                                }
+                            }
+                        }
+                        bool dispo = false;
+                        string datedispo = "";
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} pour {nbpassager} personnes de {Ville1} à {Ville2}.");
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            if (dispo) Console.WriteLine($"Il n'y a pas de chauffeur ou de voiture disponible pour le {datedispo}.");
+                            else Console.WriteLine();
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine("A quel date : ");
+                            Console.WriteLine("( année-mois-jour )");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(14, Console.CursorTop - 4);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (DateTime.TryParseExact(var2, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _)) // vérifie que la date est bien sous le format année-mois-jour, paramère mis pour dire qu'il n'y a pas de dépendandce et que l'on ne veut pas de sortie DateTime, juste le bool
+                                {
+                                    string ChauffeurDispo = SelectCommande($"SELECT NSS FROM Salarie WHERE Poste Like \"Chauffeu%\" AND NSS NOT IN (SELECT NSS_Chauffeur FROM Commande WHERE DateCommande = '{var2}');", connectionString);
+                                    string VoitureDispo = SelectCommande($"SELECT Immatriculation FROM Voiture WHERE NbPlace >= {nbpassager + 1} AND Immatriculation NOT IN ( SELECT Immatriculation FROM Commande WHERE DateCommande = '{var2}') ORDER BY NbPlace;", connectionString);
+                                    if (ChauffeurDispo != "" && VoitureDispo != "")
+                                    {
+                                        date = var2;
+                                        chauffeurNSS = ChauffeurDispo.Split('|').First();
+                                        véhicule = VoitureDispo.Split("|").First();
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        dispo = true;
+                                        datedispo = var2;
+                                    }
+                                }
+                            }
+                        }
+                        if (fin)
+                        {
+                            utilité = $"Transport de {nbpassager} passagers de {Ville1} à {Ville2}.";
+                            var (distance, chemin) = g.Dijkstra(Ville1, Ville2); //récupérartion de la distance et du chemin le plus court entre les 2 ville choisi
+                            km = distance.ToString();
+
+                            string Entre = SelectCommande($"SELECT DateEntree FROM Salarie WHERE NSS = '{chauffeurNSS}';", connectionString);
+                            DateTime dateEntre = DateTime.Parse(Entre);
+                            int ancienneté = DateTime.Today.Year - dateEntre.Year;
+                            chauffeur = string.Join(" ", SelectCommande("SELECT Prenom,Nom FROM PERSONNE WHERE NSS = " + chauffeurNSS + ";", connectionString).Split(";"));
+
+
+                            prix = Prix(ancienneté, Double.Parse(km), 0); // initialisation du prix, prixEntier et prixDecimal servent à noter le prix en SQL car les string mettent des virgule alors que le SQL veux un point entre la partie entière et décimal
+                            prixEntier = Math.Truncate(prix);
+                            prixDecimal = Math.Round((prix - prixEntier) * 100, 2);
+                        }
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} pour {nbpassager} personnes de {Ville1} à {Ville2} le {date}.");
+                            Console.WriteLine($"Le trajet est de {km}km et coûte {prix} euros.");
+                            Console.WriteLine($"Votre chauffeur sera {chauffeur}.");
+                            Console.WriteLine("\nAvez-vous payer : ");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(18, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 == "oui")
+                                {
+                                    break;
+                                }
+                                else if (var2 == "non")
+                                {
+                                    fin = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (fin)
+                        {
+                            string commande = $"INSERT INTO Commande (NSS_Client, NSS_Chauffeur, Immatriculation, Utilisation, DateCommande, VilleDepart, VilleArrivee, Prix, KmTotal) VALUES ('{nss}','{chauffeurNSS}','{véhicule}','{utilité}','{date}','{Ville1}','{Ville2}','{prixEntier}.{prixDecimal}','{km}')";
+
+                            MySqlConnection connection = new MySqlConnection(connectionString);
+                            connection.Open();
+
+                            Console.WriteLine(commande);
+
+                            MySqlCommand command = connection.CreateCommand();
+                            command.CommandText = commande;
+                            command.ExecuteNonQuery();
+                            connection.Close();
+                        }
+                    }
+                    else if (var == "camionnette")
+                    {
+                        var = char.ToUpper(var[0]) + var.Substring(1).ToLower();
+
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine("Service : " + var);
+                            Console.WriteLine("Pour quel utilisation : ");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(24, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                utilité = "Camionnette : " + char.ToUpper(var2[0]) + var2.Substring(1).ToLower();
+                                break;
+                            }
+                        }
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var}");
+                            Console.WriteLine("Ville disponible : " + villeStr);
+                            Console.WriteLine("\nVous partez de quel Ville :");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(28, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 != "") var2 = char.ToUpper(var2[0]) + var2.Substring(1);
+                                if (ville.Contains(var2))
+                                {
+                                    Ville1 = var2;
+                                    break;
+                                }
+                            }
+                        }
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var}");
+                            Console.WriteLine("Ville disponible : " + villeStr);
+                            Console.WriteLine("\nVous allez à quel Ville :");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(26, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 != "") var2 = char.ToUpper(var2[0]) + var2.Substring(1);
+                                if (ville.Contains(var2) && Ville1 != var2)
+                                {
+                                    Ville2 = var2;
+                                    break;
+                                }
+                            }
+                        }
+                        bool dispo = false;
+                        string datedispo = "";
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} de {Ville1} à {Ville2}.");
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            if (dispo) Console.WriteLine($"Il n'y a pas de chauffeur ou de voiture disponible pour le {datedispo}.");
+                            else Console.WriteLine();
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine("A quel date : ");
+                            Console.WriteLine("( année-mois-jour )");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(14, Console.CursorTop - 4);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (DateTime.TryParseExact(var2, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _)) // vérifie que la date est bien sous le format année-mois-jour, paramère mis pour dire qu'il n'y a pas de dépendandce et que l'on ne veut pas de sortie DateTime, juste le bool
+                                {
+                                    string ChauffeurDispo = SelectCommande($"SELECT NSS FROM Salarie WHERE Poste Like \"Chauffeu%\" AND NSS NOT IN (SELECT NSS_Chauffeur FROM Commande WHERE DateCommande = '{var2}');", connectionString);
+                                    string VoitureDispo = SelectCommande($"SELECT Immatriculation FROM Camionnette WHERE Immatriculation NOT IN ( SELECT Immatriculation FROM Commande WHERE DateCommande = '{var2}');", connectionString);
+                                    if (ChauffeurDispo != "" && VoitureDispo != "")
+                                    {
+                                        date = var2;
+                                        chauffeurNSS = ChauffeurDispo.Split('|').First();
+                                        véhicule = VoitureDispo.Split("|").First();
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        dispo = true;
+                                        datedispo = var2;
+                                    }
+                                }
+                            }
+                        }
+                        if (fin)
+                        {
+                            var (distance, chemin) = g.Dijkstra(Ville1, Ville2); //récupérartion de la distance et du chemin le plus court entre les 2 ville choisi
+                            km = distance.ToString();
+
+                            string Entre = SelectCommande($"SELECT DateEntree FROM Salarie WHERE NSS = '{chauffeurNSS}';", connectionString);
+                            DateTime dateEntre = DateTime.Parse(Entre);
+                            int ancienneté = DateTime.Today.Year - dateEntre.Year;
+                            chauffeur = string.Join(" ", SelectCommande("SELECT Prenom,Nom FROM PERSONNE WHERE NSS = " + chauffeurNSS + ";", connectionString).Split(";"));
+
+
+                            prix = Prix(ancienneté, Double.Parse(km), 1); // initialisation du prix, prixEntier et prixDecimal servent à noter le prix en SQL car les string mettent des virgule alors que le SQL veux un point entre la partie entière et décimal
+                            prixEntier = Math.Truncate(prix);
+                            prixDecimal = Math.Round((prix - prixEntier) * 100, 2);
+                        }
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} de {Ville1} à {Ville2} le {date}.");
+                            Console.WriteLine($"Le trajet est de {km}km et coûte {prix} euros.");
+                            Console.WriteLine($"Votre chauffeur sera {chauffeur}.");
+                            Console.WriteLine("\nAvez-vous payer : ");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(18, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 == "oui")
+                                {
+                                    break;
+                                }
+                                else if (var2 == "non")
+                                {
+                                    fin = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (fin)
+                        {
+                            string commande = $"INSERT INTO Commande (NSS_Client, NSS_Chauffeur, Immatriculation, Utilisation, DateCommande, VilleDepart, VilleArrivee, Prix, KmTotal) VALUES ('{nss}','{chauffeurNSS}','{véhicule}','{utilité}','{date}','{Ville1}','{Ville2}','{prixEntier}.{prixDecimal}','{km}')";
+
+                            MySqlConnection connection = new MySqlConnection(connectionString);
+                            connection.Open();
+
+                            Console.WriteLine(commande);
+
+                            MySqlCommand command = connection.CreateCommand();
+                            command.CommandText = commande;
+                            command.ExecuteNonQuery();
+                            connection.Close();
+                        }
+                    }
+                    else
+                    {
+                        var = char.ToUpper(var[0]) + var.Substring(1).ToLower();
+                        string Type = "";
+                        double NbLitre = 0;
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine("Service : " + var);
+                            Console.WriteLine("Type disponible : Frigorifique, Citerne, Benne.");
+                            Console.WriteLine("De quel type avez-vous besoin : ");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(32, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 == "frigorifique" || var2 == "citerne" || var2 == "benne")
+                                {
+                                    Type = char.ToUpper(var2[0]) + var2.Substring(1).ToLower();
+                                    break;
+                                }
+                            }
+                        }
+                        double LitreMax = Double.Parse(SelectCommande($"SELECT MAX(VolumeTransportable) FROM PoidsLourd WHERE Type = '{Type}';", connectionString)); ;
+                        bool litre = false;
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} {Type}");
+                            Console.WriteLine("De combien de Litres avez-vous besoin : ");
+                            if (litre) Console.WriteLine(LitreMax + " Litres maximum pour les camions " + Type);
+                            else Console.WriteLine();
+                            Console.WriteLine("( exit pour sortir )");
+                            Console.SetCursorPosition(40, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                try
+                                {
+                                    bool ok = true;
+                                    if (var2 == "") ok = false;
+                                    if (Char.IsDigit(var2[0]) == false || double.Parse(var2) > LitreMax)
+                                    {
+                                        litre = true;
+                                        ok = false;
+                                    }
+                                    if (ok)
+                                    {
+                                        NbLitre = double.Parse(var2);
+                                        break;
+                                    }
+                                }
+                                catch { continue; }
+                            }
+                        }
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} {Type} pour {NbLitre} litres.");
+                            Console.WriteLine("Ville disponible : " + villeStr);
+                            Console.WriteLine("\nVous partez de quel Ville :");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(28, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 != "") var2 = char.ToUpper(var2[0]) + var2.Substring(1);
+                                if (ville.Contains(var2))
+                                {
+                                    Ville1 = var2;
+                                    break;
+                                }
+                            }
+                        }
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} {Type} pour {NbLitre} litres.");
+                            Console.WriteLine("Ville disponible : " + villeStr);
+                            Console.WriteLine("\nVous allez à quel Ville :");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(26, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 != "") var2 = char.ToUpper(var2[0]) + var2.Substring(1);
+                                if (ville.Contains(var2) && Ville1 != var2)
+                                {
+                                    Ville2 = var2;
+                                    break;
+                                }
+                            }
+                        }
+                        bool dispo = false;
+                        string datedispo = "";
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} {Type} pour {NbLitre} litres de {Ville1} à {Ville2}.");
+                            Console.ForegroundColor = ConsoleColor.Red;
+                            if (dispo) Console.WriteLine($"Il n'y a pas de chauffeur ou de voiture disponible pour le {datedispo}.");
+                            else Console.WriteLine();
+                            Console.ForegroundColor = ConsoleColor.White;
+                            Console.WriteLine("A quel date : ");
+                            Console.WriteLine("( année-mois-jour )");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(14, Console.CursorTop - 4);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (DateTime.TryParseExact(var2, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out _)) // vérifie que la date est bien sous le format année-mois-jour, paramère mis pour dire qu'il n'y a pas de dépendandce et que l'on ne veut pas de sortie DateTime, juste le bool
+                                {
+                                    string ChauffeurDispo = SelectCommande($"SELECT NSS FROM Salarie WHERE Poste Like \"Chauffeu%\" AND NSS NOT IN (SELECT NSS_Chauffeur FROM Commande WHERE DateCommande = '{var2}');", connectionString);
+                                    string VoitureDispo = SelectCommande($"SELECT Immatriculation FROM PoidsLourd WHERE VolumeTransportable >= {NbLitre} AND Type = '{Type}' AND Immatriculation NOT IN ( SELECT Immatriculation FROM Commande WHERE DateCommande = '{var2}') ORDER BY VolumeTransportable;", connectionString);
+                                    if (ChauffeurDispo != "" && VoitureDispo != "")
+                                    {
+                                        date = var2;
+                                        chauffeurNSS = ChauffeurDispo.Split('|').First();
+                                        véhicule = VoitureDispo.Split("|").First();
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        dispo = true;
+                                        datedispo = var2;
+                                    }
+                                }
+                            }
+                        }
+                        if (fin)
+                        {
+                            utilité = $"Transport de {NbLitre} Litre de {Ville1} à {Ville2} dans un camions {Type}.";
+                            var (distance, chemin) = g.Dijkstra(Ville1, Ville2); //récupérartion de la distance et du chemin le plus court entre les 2 ville choisi
+                            km = distance.ToString();
+
+                            string Entre = SelectCommande($"SELECT DateEntree FROM Salarie WHERE NSS = '{chauffeurNSS}';", connectionString);
+                            DateTime dateEntre = DateTime.Parse(Entre);
+                            int ancienneté = DateTime.Today.Year - dateEntre.Year;
+                            chauffeur = string.Join(" ", SelectCommande("SELECT Prenom,Nom FROM PERSONNE WHERE NSS = " + chauffeurNSS + ";", connectionString).Split(";"));
+
+
+                            prix = Prix(ancienneté, Double.Parse(km), 2); // initialisation du prix, prixEntier et prixDecimal servent à noter le prix en SQL car les string mettent des virgule alors que le SQL veux un point entre la partie entière et décimal
+                            prixEntier = Math.Truncate(prix);
+                            prixDecimal = Math.Round((prix - prixEntier) * 100, 2);
+                        }
+                        while (fin)
+                        {
+                            Console.Clear();
+                            Console.WriteLine($"\nCommande de {personne} : \n");
+                            Console.WriteLine($"Service : {var} {Type} pour {NbLitre} litres de {Ville1} à {Ville2}.");
+                            Console.WriteLine($"Le trajet est de {km}km et coûte {prix} euros.");
+                            Console.WriteLine($"Votre chauffeur sera {chauffeur}.");
+                            Console.WriteLine("\nAvez-vous payer : ");
+                            Console.WriteLine("\n( exit pour sortir )");
+                            Console.SetCursorPosition(18, Console.CursorTop - 3);
+                            Console.CursorVisible = true;
+                            string var2 = Console.ReadLine().ToLower();
+                            Console.CursorVisible = false;
+                            if (var2 == "exit")
+                            {
+                                fin = false;
+                                break;
+                            }
+                            else
+                            {
+                                if (var2 == "oui")
+                                {
+                                    break;
+                                }
+                                else if (var2 == "non")
+                                {
+                                    fin = false;
+                                    break;
+                                }
+                            }
+                        }
+                        if (fin)
+                        {
+                            string commande = $"INSERT INTO Commande (NSS_Client, NSS_Chauffeur, Immatriculation, Utilisation, DateCommande, VilleDepart, VilleArrivee, Prix, KmTotal) VALUES ('{nss}','{chauffeurNSS}','{véhicule}','{utilité}','{date}','{Ville1}','{Ville2}','{prixEntier}.{prixDecimal}','{km}')";
+
+                            MySqlConnection connection = new MySqlConnection(connectionString);
+                            connection.Open();
+
+                            Console.WriteLine(commande);
+
+                            MySqlCommand command = connection.CreateCommand();
+                            command.CommandText = commande;
+                            command.ExecuteNonQuery();
+                            connection.Close();
+                        }
+                    }
+                    break;
+                }
+            }
         }
         static double Prix(int ancienneté, double km, int type)
         {
             double res = 20; // prix de base pour la prise en charge du client
-            if(type == 0) // prix par km Voiture
+            if (type == 0) // prix par km Voiture
             {
                 res += km;
             }
-            else if(type == 1) // prix par km Camionnette
+            else if (type == 1) // prix par km Camionnette
             {
-                res += km*1.5;
+                res += km * 1.5;
             }
-            else if(type == 2) // prix par km PoidsLourd
+            else if (type == 2) // prix par km PoidsLourd
             {
-                res += km*1.75;
+                res += km * 1.75;
             }
-            res = res * (1+((double)ancienneté /400));
-            return Math.Round(res,2);
+            res = res * (1 + ((double)ancienneté / 400));
+            return Math.Round(res, 2);
         }
     }
 }
