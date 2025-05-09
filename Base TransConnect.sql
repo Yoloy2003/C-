@@ -64,7 +64,7 @@ CREATE TABLE PoidsLourd
 DROP TABLE IF EXISTS Commande;
 CREATE TABLE Commande
 (
-    Numero INT PRIMARY KEY AUTO_INCREMENT,
+    Numero INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
     NSS_Client VARCHAR(20),
     NSS_Chauffeur VARCHAR(20),
     Immatriculation VARCHAR(20),
